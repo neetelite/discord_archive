@@ -1,3 +1,5 @@
+console.log("starting");
+
 import Discord from "discord.js-selfbot";
 
 import fs from "fs";
@@ -31,7 +33,18 @@ const message_return_get = (message) => {
         embeds: message.embeds,
         webhook: message.webhookID,
         application: message.applicationID,
+
+        type: message.type,
+
+        channel: message.channel.id,
+        guild: message.guild.id,
+
+        is_tts: message.tts,
+        is_system: message.system,
+        is_pinned: message.pinned,
         is_deleted: message.deleted,
+
+        date_edited: message.editedTimestamp,
     };
 
     const attachments = [];
@@ -39,41 +52,22 @@ const message_return_get = (message) => {
         attachments.push(attachment.id);
     }
 
-    const reactions = [];
-    for (const reaction of message.reactions.cache) {
-        var name = reaction[0];
-        var count = reaction[1].count;
-
-        reactions.push({ [name]: count });
-    }
-
     var reference = null;
     if (message.reference) reference = message.reference.messageID;
 
     const message_return = {
         id: message.id,
-        type: message.type,
-
-        author: message.authorID,
-        channel: message.channelID,
-        guild: message.guildID,
-
-        is_tts: message.tts,
-        is_system: message.system,
-        is_pinned: message.pinned,
+        author: message.author.tag,
 
         date_created: message.createdTimestamp,
-        date_edited: message.editedTimestamp,
-
 
         content: message.content,
         attachments: attachments,
-        reactions: reactions,
 
         reference: reference,
     }
 
-    return (JSON.stringify(message_return) + "\n");
+    return (JSON.stringify(message_return));
 }
 
 const message_attachments_download = async (message, directory) => {
@@ -83,7 +77,7 @@ const message_attachments_download = async (message, directory) => {
 
         if (!fs.existsSync(path)) {
             try {
-                console.log(`\t\tFile downloading: ${path}`);
+                console.log(`\tFile downloading: ${path}`);
                 await download(attachment.url, directory, { filename: filename });
             }
             catch (err) {
@@ -91,7 +85,7 @@ const message_attachments_download = async (message, directory) => {
                 process.exit(1);
             }
         }
-        //else (`\t\tFile already exists: ${path}`);
+        else (`File already exists: ${path}`);
     }
 }
 
@@ -115,7 +109,7 @@ const server_archive = async (guild) => {
         var message_array = [];
         const messages = await messages_from_channel(channel);
         for (const message of messages) {
-            message_array.unshift(message_return_get(message));
+            message_array.unshift(message_return_get(message) + "\n");
             await message_attachments_download(message, dir_image);
         }
 
@@ -132,7 +126,7 @@ client.on("ready", async () => {
 client.on("message", async (message) => {
     try {
         if (!message.guild) return;
-        if (!servers_to_archive.includes(message.guild)) return;
+        if (!servers_to_archive.includes(message.guild.id)) return;
         if (message.type != "DEFAULT") return;
 
         if (message.content == "^archive") server_archive(message.guild);
@@ -143,7 +137,7 @@ client.on("message", async (message) => {
             const message_return = message_return_get(message);
             console.log(message_return);
 
-            fs.appendFileSync(file_channel, message_return);
+            fs.appendFileSync(file_channel, message_return + "\n");
 
             const dir_image = `${dir_server}/images`;
             if (message.attachments.size > 0) await message_attachments_download(message, dir_image);
